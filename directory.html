@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Alumni & Member Directory</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Georgia, serif; background: #f5f4f0; color: #1a1a1a; min-height: 100vh; }
+
+  .app { max-width: 820px; margin: 0 auto; padding: 2.5rem 1rem; }
+
+  .header { text-align: center; margin-bottom: 2rem; }
+  .header h1 { font-size: 26px; font-weight: normal; letter-spacing: 0.04em; }
+  .header p { font-size: 13px; color: #666; margin-top: 5px; font-family: sans-serif; }
+
+  .tabs { display: flex; border-bottom: 1px solid #ddd; margin-bottom: 2rem; }
+  .tab { padding: 10px 24px; font-size: 14px; font-family: sans-serif; cursor: pointer; border: none; background: none; color: #888; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all 0.15s; }
+  .tab.active { color: #1a1a1a; border-bottom-color: #1a1a1a; font-weight: 500; }
+  .tab:hover:not(.active) { color: #1a1a1a; }
+
+  .search-row { display: flex; gap: 10px; margin-bottom: 1.2rem; flex-wrap: wrap; }
+  .search-row input, .search-row select {
+    font-family: sans-serif; font-size: 13px; padding: 8px 12px;
+    border: 1px solid #ddd; border-radius: 6px; background: #fff; color: #1a1a1a; outline: none;
+  }
+  .search-row input { flex: 1; min-width: 160px; }
+  .search-row select { min-width: 130px; }
+  .search-row input:focus, .search-row select:focus { border-color: #999; }
+
+  .count-badge { font-size: 12px; font-family: sans-serif; color: #888; margin-bottom: 1rem; }
+
+  .member-grid { display: flex; flex-direction: column; gap: 10px; }
+  .member-card {
+    background: #fff; border: 1px solid #e8e8e8; border-radius: 10px;
+    padding: 14px 18px; display: flex; align-items: center; gap: 16px;
+  }
+  .avatar {
+    width: 40px; height: 40px; border-radius: 50%; background: #f0ede8;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 500; color: #666; flex-shrink: 0; font-family: sans-serif;
+  }
+  .member-info { flex: 1; }
+  .member-name { font-size: 15px; font-weight: 500; font-family: sans-serif; }
+  .member-meta { font-size: 12px; color: #888; font-family: sans-serif; margin-top: 3px; }
+  .li-link {
+    font-size: 12px; font-family: sans-serif; color: #1a6fc4; text-decoration: none;
+    padding: 5px 12px; border: 1px solid #c5d9ef; border-radius: 6px; white-space: nowrap;
+  }
+  .li-link:hover { background: #eaf1fb; }
+
+  .empty { text-align: center; padding: 3rem 1rem; font-family: sans-serif; color: #999; font-size: 14px; }
+
+  .form-card { background: #fff; border: 1px solid #e8e8e8; border-radius: 12px; padding: 2rem; }
+  .form-title { font-size: 16px; font-weight: 500; font-family: sans-serif; margin-bottom: 1.5rem; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  label { font-size: 11px; font-family: sans-serif; color: #888; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
+  .form-group input, .form-group select {
+    font-family: sans-serif; font-size: 14px; padding: 9px 12px;
+    border: 1px solid #ddd; border-radius: 8px; background: #fff; color: #1a1a1a; outline: none;
+  }
+  .form-group input:focus, .form-group select:focus { border-color: #999; }
+  .submit-btn {
+    margin-top: 1.5rem; width: 100%; padding: 11px; background: #1a1a1a;
+    color: #fff; border: none; border-radius: 8px; font-size: 14px;
+    font-family: sans-serif; font-weight: 500; cursor: pointer; transition: opacity 0.15s;
+  }
+  .submit-btn:hover { opacity: 0.8; }
+
+  .success-msg {
+    background: #eaf7ee; color: #2e7d4f; padding: 10px 14px; border-radius: 8px;
+    font-family: sans-serif; font-size: 13px; margin-bottom: 1rem; display: none;
+  }
+  .success-msg.show { display: block; }
+
+  hr.divider { border: none; border-top: 1px solid #eee; margin: 2rem 0; }
+
+  .upload-zone {
+    border: 1.5px dashed #ccc; border-radius: 8px; padding: 20px;
+    text-align: center; cursor: pointer; font-family: sans-serif; font-size: 13px;
+    color: #888; transition: background 0.15s;
+  }
+  .upload-zone:hover { background: #f9f9f7; }
+  .upload-status { font-size: 12px; color: #666; font-family: sans-serif; margin-top: 8px; min-height: 18px; }
+
+  .venmo-section { text-align: center; padding: 1.5rem; background: #f9f9f7; border-radius: 10px; }
+  .venmo-section > p { font-size: 13px; font-family: sans-serif; color: #666; margin-bottom: 12px; }
+  .venmo-btn {
+    display: inline-block; padding: 10px 28px; background: #008CFF; color: #fff;
+    border-radius: 8px; font-size: 14px; font-family: sans-serif; font-weight: 500;
+    text-decoration: none;
+  }
+  .venmo-btn:hover { background: #0078e0; }
+  .venmo-edit-row { display: none; gap: 8px; align-items: center; justify-content: center; margin-top: 10px; }
+  .venmo-edit-row input {
+    flex: 1; max-width: 220px; font-family: sans-serif; font-size: 13px;
+    padding: 7px 10px; border: 1px solid #ddd; border-radius: 6px; outline: none;
+  }
+  .venmo-edit-row input:focus { border-color: #999; }
+  .save-venmo-btn {
+    padding: 7px 14px; font-size: 13px; font-family: sans-serif;
+    border: 1px solid #ddd; border-radius: 6px; background: #fff; cursor: pointer;
+  }
+  .save-venmo-btn:hover { background: #f0f0f0; }
+  .venmo-config-btn {
+    font-size: 11px; background: none; border: none; color: #aaa;
+    cursor: pointer; font-family: sans-serif; margin-top: 10px;
+  }
+
+  .org-edit-row { display: flex; gap: 8px; align-items: center; justify-content: center; margin-top: 8px; }
+  .org-edit-row input {
+    font-family: sans-serif; font-size: 13px; padding: 6px 10px;
+    border: 1px solid #ddd; border-radius: 6px; outline: none; width: 240px;
+  }
+  .org-edit-row button {
+    padding: 6px 12px; font-size: 12px; font-family: sans-serif;
+    border: 1px solid #ddd; border-radius: 6px; background: #fff; cursor: pointer;
+  }
+
+  @media (max-width: 540px) {
+    .form-grid { grid-template-columns: 1fr; }
+    .search-row select { min-width: 100px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="header">
+    <h1 id="org-name">Alumni &amp; Member Directory</h1>
+    <p id="org-subtitle">Your chapter network — all in one place</p>
+    <div class="org-edit-row" id="org-edit-row" style="display:none;">
+      <input type="text" id="org-name-input" placeholder="e.g. Delta Chi Alumni Directory" />
+      <button onclick="saveOrgName()">Save</button>
+      <button onclick="toggleOrgEdit()">Cancel</button>
+    </div>
+    <button class="venmo-config-btn" onclick="toggleOrgEdit()" style="margin-top:6px;">✎ Edit chapter name</button>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('directory')">Directory</button>
+    <button class="tab" onclick="switchTab('join')">Add Yourself</button>
+  </div>
+
+  <!-- DIRECTORY TAB -->
+  <div id="tab-directory">
+    <div class="search-row">
+      <input type="text" id="search-input" placeholder="Search by name..." oninput="renderDirectory()" />
+      <select id="filter-year" onchange="renderDirectory()"><option value="">All years</option></select>
+      <select id="filter-industry" onchange="renderDirectory()"><option value="">All industries</option></select>
+    </div>
+    <div class="count-badge" id="count-badge"></div>
+    <div class="member-grid" id="member-grid"></div>
+  </div>
+
+  <!-- JOIN TAB -->
+  <div id="tab-join" style="display:none;">
+    <div class="form-card">
+      <div class="form-title">Add your information to the directory</div>
+      <div class="success-msg" id="success-msg">✓ You've been added to the directory!</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>First Name *</label>
+          <input type="text" id="f-fname" placeholder="Alex" />
+        </div>
+        <div class="form-group">
+          <label>Last Name *</label>
+          <input type="text" id="f-lname" placeholder="Smith" />
+        </div>
+        <div class="form-group">
+          <label>Graduation Year *</label>
+          <input type="text" id="f-year" placeholder="2022" maxlength="4" />
+        </div>
+        <div class="form-group">
+          <label>Industry *</label>
+          <select id="f-industry">
+            <option value="">Select industry</option>
+            <option>Finance</option>
+            <option>Technology</option>
+            <option>Consulting</option>
+            <option>Healthcare</option>
+            <option>Law</option>
+            <option>Engineering</option>
+            <option>Marketing &amp; Media</option>
+            <option>Real Estate</option>
+            <option>Education</option>
+            <option>Government &amp; Nonprofit</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Phone Number</label>
+          <input type="tel" id="f-phone" placeholder="(555) 123-4567" />
+        </div>
+        <div class="form-group">
+          <label>LinkedIn URL</label>
+          <input type="url" id="f-linkedin" placeholder="linkedin.com/in/yourname" />
+        </div>
+      </div>
+      <button class="submit-btn" onclick="submitMember()">Add me to the directory</button>
+    </div>
+
+    <hr class="divider" />
+
+    <div class="form-card" style="margin-bottom: 1.5rem;">
+      <div class="form-title" style="margin-bottom: 0.5rem;">Or upload a roster (.xlsx / .csv)</div>
+      <p style="font-size:13px; color:#888; font-family:sans-serif; margin-bottom:1rem;">
+        Columns needed: <strong>First Name, Last Name, Grad Year, Industry, Phone, LinkedIn</strong>
+      </p>
+      <div class="upload-zone" onclick="document.getElementById('file-upload').click()">
+        Click to upload file (.xlsx or .csv)
+        <input type="file" id="file-upload" accept=".csv,.xlsx,.xls" style="display:none" onchange="handleFileUpload(this)" />
+      </div>
+      <div class="upload-status" id="upload-status"></div>
+    </div>
+
+    <div class="venmo-section">
+      <p>Enjoying the network? Consider making an optional donation to the chapter.</p>
+      <div id="venmo-display"></div>
+      <div class="venmo-edit-row" id="venmo-edit-row">
+        <input type="text" id="venmo-input" placeholder="@venmo-username" />
+        <button class="save-venmo-btn" onclick="saveVenmo()">Save</button>
+      </div>
+      <button class="venmo-config-btn" onclick="toggleVenmoEdit()">⚙ Set Venmo username</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // --- Data stored in localStorage ---
+  let members = JSON.parse(localStorage.getItem('dir_members') || '[]');
+  let venmoUser = localStorage.getItem('dir_venmo') || '';
+  let orgName = localStorage.getItem('dir_orgname') || '';
+
+  if (orgName) {
+    document.getElementById('org-name').textContent = orgName;
+  }
+
+  function saveMembers() {
+    localStorage.setItem('dir_members', JSON.stringify(members));
+  }
+
+  // --- Directory rendering ---
+  function getInitials(first, last) {
+    return ((first[0] || '') + (last[0] || '')).toUpperCase();
+  }
+
+  function renderDirectory() {
+    const q = document.getElementById('search-input').value.toLowerCase();
+    const fy = document.getElementById('filter-year').value;
+    const fi = document.getElementById('filter-industry').value;
+
+    let filtered = members.filter(m => {
+      const name = (m.fname + ' ' + m.lname).toLowerCase();
+      return (!q || name.includes(q)) &&
+             (!fy || m.year === fy) &&
+             (!fi || m.industry === fi);
+    });
+
+    const grid = document.getElementById('member-grid');
+    const badge = document.getElementById('count-badge');
+    badge.textContent = filtered.length + ' member' + (filtered.length !== 1 ? 's' : '');
+
+    if (filtered.length === 0) {
+      grid.innerHTML = '<div class="empty">No members found.<br>Be the first to add yourself!</div>';
+    } else {
+      filtered.sort((a, b) => (b.year || '').localeCompare(a.year || ''));
+      grid.innerHTML = filtered.map(m => `
+        <div class="member-card">
+          <div class="avatar">${getInitials(m.fname, m.lname)}</div>
+          <div class="member-info">
+            <div class="member-name">${escHtml(m.fname)} ${escHtml(m.lname)}</div>
+            <div class="member-meta">${[m.year ? "'" + m.year.slice(-2) : '', m.industry, m.phone].filter(Boolean).join(' · ')}</div>
+          </div>
+          <div>
+            ${m.linkedin ? `<a class="li-link" href="${m.linkedin.startsWith('http') ? escHtml(m.linkedin) : 'https://' + escHtml(m.linkedin)}" target="_blank" rel="noopener">LinkedIn →</a>` : ''}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    updateFilters(fy, fi);
+  }
+
+  function updateFilters(cy, ci) {
+    const years = [...new Set(members.map(m => m.year).filter(Boolean))].sort((a, b) => b - a);
+    const industries = [...new Set(members.map(m => m.industry).filter(Boolean))].sort();
+    const fy = document.getElementById('filter-year');
+    const fi = document.getElementById('filter-industry');
+    fy.innerHTML = '<option value="">All years</option>' + years.map(y => `<option value="${y}"${cy === y ? ' selected' : ''}>${y}</option>`).join('');
+    fi.innerHTML = '<option value="">All industries</option>' + industries.map(i => `<option value="${i}"${ci === i ? ' selected' : ''}>${escHtml(i)}</option>`).join('');
+  }
+
+  function escHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // --- Form submission ---
+  function submitMember() {
+    const fname = document.getElementById('f-fname').value.trim();
+    const lname = document.getElementById('f-lname').value.trim();
+    const year = document.getElementById('f-year').value.trim();
+    const industry = document.getElementById('f-industry').value;
+    if (!fname || !lname || !year || !industry) {
+      alert('Please fill in all required fields (First Name, Last Name, Graduation Year, Industry).');
+      return;
+    }
+    members.push({
+      id: Date.now(),
+      fname, lname, year, industry,
+      phone: document.getElementById('f-phone').value.trim(),
+      linkedin: document.getElementById('f-linkedin').value.trim(),
+    });
+    saveMembers();
+    ['f-fname','f-lname','f-year','f-phone','f-linkedin'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('f-industry').value = '';
+    const msg = document.getElementById('success-msg');
+    msg.classList.add('show');
+    setTimeout(() => msg.classList.remove('show'), 3000);
+  }
+
+  // --- File upload ---
+  function handleFileUpload(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const status = document.getElementById('upload-status');
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const wb = XLSX.read(e.target.result, { type: 'binary' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws);
+        let added = 0;
+        rows.forEach(row => {
+          const fname = (row['First Name'] || row['first name'] || row['FirstName'] || '').toString().trim();
+          const lname = (row['Last Name'] || row['last name'] || row['LastName'] || '').toString().trim();
+          if (!fname && !lname) return;
+          members.push({
+            id: Date.now() + Math.random(),
+            fname: fname || 'Unknown',
+            lname: lname || '',
+            year: (row['Grad Year'] || row['grad year'] || row['Year'] || '').toString().trim(),
+            industry: (row['Industry'] || row['industry'] || '').toString().trim(),
+            phone: (row['Phone'] || row['phone'] || '').toString().trim(),
+            linkedin: (row['LinkedIn'] || row['linkedin'] || '').toString().trim(),
+          });
+          added++;
+        });
+        saveMembers();
+        status.textContent = '✓ Added ' + added + ' member' + (added !== 1 ? 's' : '') + ' from file.';
+        renderDirectory();
+      } catch (err) {
+        status.textContent = '✗ Could not parse file. Check that column names match.';
+      }
+    };
+    reader.readAsBinaryString(file);
+    input.value = '';
+  }
+
+  // --- Venmo ---
+  function renderVenmo() {
+    const el = document.getElementById('venmo-display');
+    if (venmoUser) {
+      el.innerHTML = `<a class="venmo-btn" href="https://venmo.com/${venmoUser.replace('@','')}" target="_blank" rel="noopener">Donate on Venmo</a>`;
+    } else {
+      el.innerHTML = `<p style="font-size:12px; color:#aaa; font-family:sans-serif;">No Venmo set yet — use the button below.</p>`;
+    }
+  }
+
+  function toggleVenmoEdit() {
+    const row = document.getElementById('venmo-edit-row');
+    row.style.display = row.style.display === 'flex' ? 'none' : 'flex';
+    if (row.style.display === 'flex') document.getElementById('venmo-input').value = venmoUser;
+  }
+
+  function saveVenmo() {
+    venmoUser = document.getElementById('venmo-input').value.trim();
+    localStorage.setItem('dir_venmo', venmoUser);
+    renderVenmo();
+    document.getElementById('venmo-edit-row').style.display = 'none';
+  }
+
+  // --- Org name ---
+  function toggleOrgEdit() {
+    const row = document.getElementById('org-edit-row');
+    row.style.display = row.style.display === 'none' ? 'flex' : 'none';
+    if (row.style.display === 'flex') document.getElementById('org-name-input').value = document.getElementById('org-name').textContent;
+  }
+
+  function saveOrgName() {
+    const val = document.getElementById('org-name-input').value.trim();
+    if (val) {
+      document.getElementById('org-name').textContent = val;
+      localStorage.setItem('dir_orgname', val);
+    }
+    document.getElementById('org-edit-row').style.display = 'none';
+  }
+
+  // --- Tab switching ---
+  function switchTab(tab) {
+    document.getElementById('tab-directory').style.display = tab === 'directory' ? 'block' : 'none';
+    document.getElementById('tab-join').style.display = tab === 'join' ? 'block' : 'none';
+    document.querySelectorAll('.tab').forEach((t, i) => {
+      t.classList.toggle('active', (i === 0 && tab === 'directory') || (i === 1 && tab === 'join'));
+    });
+  }
+
+  // --- Init ---
+  renderDirectory();
+  renderVenmo();
+</script>
+</body>
+</html>
